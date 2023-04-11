@@ -1,0 +1,75 @@
+package pack
+import org.apache.spark.{ SparkConf, SparkContext, _ }
+import org.apache.spark.sql.{ SparkSession, Row, types, functions, Dataset, _ }
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
+//import org.apache.spark.sql.catalyst.plans.{ LeftOuter, Inner }
+object dsljoinpractice {
+
+  def main(args: Array[String]): Unit = {
+
+    val conf = new SparkConf().setAppName("dsl").setMaster("local[*]")
+    //                              .set("fsa.secret.key","")
+
+    val sc = new SparkContext(conf)
+    sc.setLogLevel("ERROR")
+
+    val spark = SparkSession.builder.config(conf).getOrCreate()
+    import spark.implicits._
+
+    val compath = "D:/Cloud_Journey/DE/data/joins"
+
+    val custcolumns = List("emp_id", "firstname", "lastname", "age", "Gender")
+    val addcolumn = List("emp_id", "streetinfo", "city", "State", "pincode")
+    val discolumn = List("pincode", "district", "State")
+    val headcolumn = List("pincode", "head", "sub-head")
+
+    val custdata = spark
+      .read
+      .format("csv")
+      //                   .option("","")
+      .load(s"$compath" + "/cust.txt")
+      .toDF(custcolumns: _*)
+
+    custdata.show(5)
+
+    println("========== firs fil record printed========")
+
+    val adr = spark
+      .read
+      .format("csv")
+      //                .option("","")
+      .load(s"$compath" + "/adress.txt")
+      .toDF(addcolumn: _*)
+    //      .show(2)
+
+    println("===========address file record printed ====")
+
+    val dis = spark
+      .read
+      .format("CSV")
+      .load(s"$compath" + "/district.txt")
+          .toDF(discolumn:_*)
+    //      .show(2)
+
+    println("===========distrcit file record printed ====")
+
+    val head = spark
+      .read
+      .format("csv")
+      .load(s"$compath" + "/district_head.txt")
+                   .toDF(headcolumn:_*)
+    //               .show(2)
+
+    println("===head record printed====")
+
+    println("==== starting joins====")
+
+    val joindf = custdata.join(adr, custdata("emp_id") === adr("emp_id"), "full")
+                         .join(dis, adr("pincode") === dis("pincode"), "full" )
+                         .join(head, dis("pincode") === head("pincode") , "full")
+                         .na.fill("na",Array("custdata(emp_id)"))
+                         .show()
+  }
+
+}
